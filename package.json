@@ -1,6 +1,6 @@
 {
     "name": "libbase64",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Encode and decode base64 encoded strings",
     "main": "lib/libbase64.js",
     "scripts": {
