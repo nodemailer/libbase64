@@ -11,7 +11,7 @@ Install with npm
 Require in your script
 
 ```javascript
-var libbase64 = require('libbase64');
+const libbase64 = require('libbase64');
 ```
 
 ### Encode values
@@ -22,7 +22,7 @@ Encode Buffer objects or unicode strings with
 
 Where
 
-  * **val** is a Buffer or an unicode string
+* **val** is a Buffer or an unicode string
 
 **Example**
 
@@ -39,13 +39,13 @@ To enforce soft line breaks on lines longer than selected amount of characters, 
 
 Where
 
-  * **str** is a base64 encoded string
-  * **lineLength** (defaults to 76) is the maximum allowed line length
+* **str** is a base64 encoded string
+* **lineLength** (defaults to 76) is the maximum allowed line length
 
 **Example**
 
 ```javascript
-libbase64.wrap('asO1Z2V2asO1Z2V2asO1Z2V2YQ==', 10)
+libbase64.wrap('asO1Z2V2asO1Z2V2asO1Z2V2YQ==', 10);
 // asO1Z2V2as\r\n
 // O1Z2V2asO1\r\n
 // Z2V2YQ==
@@ -59,22 +59,23 @@ libbase64.wrap('asO1Z2V2asO1Z2V2asO1Z2V2YQ==', 10)
 
 Create new Encoder Stream with
 
-    var encoder = new libbase64.Encoder([options])
+    const encoder = new libbase64.Encoder([options])
 
 Where
 
-  * **options** is the optional stream options object with an additional option `lineLength` if you want to use any other line length than the default 76 characters (or set to `false` to turn the soft wrapping off completely)
+* **options** is the optional stream options object with an additional option `lineLength` if you want to use any other line length than the default 76
+  characters (or set to `false` to turn the soft wrapping off completely)
 
 **Example**
 
 The following example script reads in a file, encodes it to base64 and saves the output to a file.
 
 ```javascript
-var libbase64 = require('libbase64');
-var fs = require('fs');
-var source = fs.createReadStream('source.txt');
-var encoded = fs.createReadStream('encoded.txt');
-var encoder = new libbase64.Encoder();
+const libbase64 = require('libbase64');
+const fs = require('fs');
+const source = fs.createReadStream('source.txt');
+const encoded = fs.createReadStream('encoded.txt');
+const encoder = new libbase64.Encoder();
 
 source.pipe(encoder).pipe(encoded);
 ```
@@ -83,22 +84,22 @@ source.pipe(encoder).pipe(encoded);
 
 Create new Decoder Stream with
 
-    var decoder = new libbase64.Decoder([options])
+    const decoder = new libbase64.Decoder([options])
 
 Where
 
-  * **options** is the optional stream options object
+* **options** is the optional stream options object
 
 **Example**
 
 The following example script reads in a file in base64 encoding, decodes it and saves the output to a file.
 
 ```javascript
-var libbase64 = require('libbase64');
-var fs = require('fs');
-var encoded = fs.createReadStream('encoded.txt');
-var dest = fs.createReadStream('dest.txt');
-var decoder = new libbase64.Decoder();
+const libbase64 = require('libbase64');
+const fs = require('fs');
+const encoded = fs.createReadStream('encoded.txt');
+const dest = fs.createReadStream('dest.txt');
+const decoder = new libbase64.Decoder();
 
 encoded.pipe(decoder).pipe(dest);
 ```

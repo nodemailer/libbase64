@@ -1,84 +1,78 @@
+/* eslint no-unused-expressions:0, prefer-arrow-callback: 0 */
+/* globals beforeEach, describe, it */
+
 'use strict';
 
-var libbase64 = require('../lib/libbase64');
-var chai = require('chai');
-var expect = chai.expect;
-var crypto = require('crypto');
-var fs = require('fs');
+let libbase64 = require('../lib/libbase64');
+let chai = require('chai');
+let expect = chai.expect;
+let crypto = require('crypto');
+let fs = require('fs');
 
 chai.Assertion.includeStack = true;
 
-describe('libbase64', function() {
-
-    var encodeFixtures = [
+describe('libbase64', () => {
+    let encodeFixtures = [
         ['abcd= ÕÄÖÜ', 'YWJjZD0gw5XDhMOWw5w='],
         ['foo bar  ', 'Zm9vIGJhciAg'],
         ['foo bar\t\t', 'Zm9vIGJhcgkJ'],
         ['foo \r\nbar', 'Zm9vIA0KYmFy']
     ];
 
-    var decodeFixtures = [
-        ['foo bar\r\nbaz\r\n', 'Zm9v\r\nIGJhcg0\r\nKYmF6DQo=']
-    ];
+    let decodeFixtures = [['foo bar\r\nbaz\r\n', 'Zm9v\r\nIGJhcg0\r\nKYmF6DQo=']];
 
-    var wrapFixtures = [
-        [
-            'dGVyZSwgdGVyZSwgdmFuYSBrZXJlLCBrdWlkYXMgc3VsIGzDpGhlYj8=',
-            'dGVyZSwgdGVyZSwgdmFu\r\nYSBrZXJlLCBrdWlkYXMg\r\nc3VsIGzDpGhlYj8='
-        ]
-    ];
+    let wrapFixtures = [['dGVyZSwgdGVyZSwgdmFuYSBrZXJlLCBrdWlkYXMgc3VsIGzDpGhlYj8=', 'dGVyZSwgdGVyZSwgdmFu\r\nYSBrZXJlLCBrdWlkYXMg\r\nc3VsIGzDpGhlYj8=']];
 
-    var streamFixture = [
+    let streamFixture = [
         '123456789012345678  90\r\nõäöüõäöüõäöüõäöüõäöüõäöüõäöüõäöü another line === ',
         'MTIzNDU2N\r\nzg5MDEyMz\r\nQ1Njc4ICA\r\n5MA0Kw7XD\r\npMO2w7zDt\r\ncOkw7bDvM\r\nO1w6TDtsO\r\n8w7XDpMO2\r\nw7zDtcOkw\r\n7bDvMO1w6\r\nTDtsO8w7X\r\nDpMO2w7zD\r\ntcOkw7bDv\r\nCBhbm90aG\r\nVyIGxpbmU\r\ngPT09IA=='
     ];
 
-    describe('#encode', function() {
-        it('shoud encode UTF-8 string to base64', function() {
-            encodeFixtures.forEach(function(test) {
+    describe('#encode', () => {
+        it('shoud encode UTF-8 string to base64', () => {
+            encodeFixtures.forEach(test => {
                 expect(libbase64.encode(test[0])).to.equal(test[1]);
             });
         });
 
-        it('shoud encode Buffer to base64', function() {
+        it('shoud encode Buffer to base64', () => {
             expect(libbase64.encode(new Buffer([0x00, 0x01, 0x02, 0x20, 0x03]))).to.equal('AAECIAM=');
         });
     });
 
-    describe('#decode', function() {
-        it('shoud decode base64', function() {
-            encodeFixtures.concat(decodeFixtures).forEach(function(test) {
+    describe('#decode', () => {
+        it('shoud decode base64', () => {
+            encodeFixtures.concat(decodeFixtures).forEach(test => {
                 expect(libbase64.decode(test[1]).toString('utf-8')).to.equal(test[0]);
             });
         });
     });
 
-    describe('#wrap', function() {
-        it('should wrap long base64 encoded lines', function() {
-            wrapFixtures.forEach(function(test) {
+    describe('#wrap', () => {
+        it('should wrap long base64 encoded lines', () => {
+            wrapFixtures.forEach(test => {
                 expect(libbase64.wrap(test[0], 20)).to.equal(test[1]);
             });
         });
     });
 
-    describe('base64 Streams', function() {
-
-        it('should transform incoming bytes to base64', function(done) {
-            var encoder = new libbase64.Encoder({
+    describe('base64 Streams', () => {
+        it('should transform incoming bytes to base64', done => {
+            let encoder = new libbase64.Encoder({
                 lineLength: 9
             });
 
-            var bytes = new Buffer(streamFixture[0]),
+            let bytes = new Buffer(streamFixture[0]),
                 i = 0,
                 buf = [],
                 buflen = 0;
 
-            encoder.on('data', function(chunk) {
+            encoder.on('data', chunk => {
                 buf.push(chunk);
                 buflen += chunk.length;
             });
 
-            encoder.on('end', function(chunk) {
+            encoder.on('end', chunk => {
                 if (chunk) {
                     buf.push(chunk);
                     buflen += chunk.length;
@@ -89,12 +83,12 @@ describe('libbase64', function() {
                 done();
             });
 
-            var sendNextByte = function() {
+            let sendNextByte = function() {
                 if (i >= bytes.length) {
                     return encoder.end();
                 }
 
-                var ord = bytes[i++];
+                let ord = bytes[i++];
                 encoder.write(new Buffer([ord]));
                 setImmediate(sendNextByte);
             };
@@ -102,21 +96,20 @@ describe('libbase64', function() {
             sendNextByte();
         });
 
+        it('should transform incoming base64 to bytes', done => {
+            let decoder = new libbase64.Decoder();
 
-        it('should transform incoming base64 to bytes', function(done) {
-            var decoder = new libbase64.Decoder();
-
-            var bytes = new Buffer(streamFixture[1]),
+            let bytes = new Buffer(streamFixture[1]),
                 i = 0,
                 buf = [],
                 buflen = 0;
 
-            decoder.on('data', function(chunk) {
+            decoder.on('data', chunk => {
                 buf.push(chunk);
                 buflen += chunk.length;
             });
 
-            decoder.on('end', function(chunk) {
+            decoder.on('end', chunk => {
                 if (chunk) {
                     buf.push(chunk);
                     buflen += chunk.length;
@@ -127,12 +120,12 @@ describe('libbase64', function() {
                 done();
             });
 
-            var sendNextByte = function() {
+            let sendNextByte = function() {
                 if (i >= bytes.length) {
                     return decoder.end();
                 }
 
-                var ord = bytes[i++];
+                let ord = bytes[i++];
                 decoder.write(new Buffer([ord]));
                 setImmediate(sendNextByte);
             };
@@ -140,29 +133,29 @@ describe('libbase64', function() {
             sendNextByte();
         });
 
-        it('should transform incoming bytes to base64 and back', function(done) {
-            var decoder = new libbase64.Decoder();
-            var encoder = new libbase64.Encoder();
-            var file = fs.createReadStream(__dirname + '/fixtures/alice.txt');
+        it('should transform incoming bytes to base64 and back', done => {
+            let decoder = new libbase64.Decoder();
+            let encoder = new libbase64.Encoder();
+            let file = fs.createReadStream(__dirname + '/fixtures/alice.txt');
 
-            var fhash = crypto.createHash('md5');
-            var dhash = crypto.createHash('md5');
+            let fhash = crypto.createHash('md5');
+            let dhash = crypto.createHash('md5');
 
             file.pipe(encoder).pipe(decoder);
 
-            file.on('data', function(chunk) {
+            file.on('data', chunk => {
                 fhash.update(chunk);
             });
 
-            file.on('end', function() {
+            file.on('end', () => {
                 fhash = fhash.digest('hex');
             });
 
-            decoder.on('data', function(chunk) {
+            decoder.on('data', chunk => {
                 dhash.update(chunk);
             });
 
-            decoder.on('end', function() {
+            decoder.on('end', () => {
                 dhash = dhash.digest('hex');
                 expect(fhash).to.equal(dhash);
                 done();

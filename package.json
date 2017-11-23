@@ -1,6 +1,6 @@
 {
     "name": "libbase64",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "description": "Encode and decode base64 encoded strings",
     "main": "lib/libbase64.js",
     "scripts": {
@@ -8,22 +8,23 @@
     },
     "repository": {
         "type": "git",
-        "url": "git://github.com/andris9/libbase64.git"
+        "url": "git://github.com/nodemailer/libbase64.git"
     },
-    "keywords": [
-        "base64",
-        "mime"
-    ],
+    "keywords": ["base64", "mime"],
     "author": "Andris Reinman",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/andris9/libbase64/issues"
+        "url": "https://github.com/nodemailer/libbase64/issues"
     },
-    "homepage": "https://github.com/andris9/libbase64",
+    "homepage": "https://github.com/nodemailer/libbase64",
     "devDependencies": {
-        "chai": "~1.8.1",
-        "grunt": "~0.4.1",
-        "grunt-contrib-jshint": "~0.8.0",
-        "grunt-mocha-test": "~0.10.0"
-    }
+        "chai": "^4.1.2",
+        "eslint-config-nodemailer": "^1.2.0",
+        "grunt": "^1.0.1",
+        "grunt-cli": "^1.2.0",
+        "grunt-eslint": "^20.1.0",
+        "grunt-mocha-test": "^0.13.3",
+        "mocha": "^4.0.1"
+    },
+    "dependencies": {}
 }
