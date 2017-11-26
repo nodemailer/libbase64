@@ -10,7 +10,10 @@
         "type": "git",
         "url": "git://github.com/nodemailer/libbase64.git"
     },
-    "keywords": ["base64", "mime"],
+    "keywords": [
+        "base64",
+        "mime"
+    ],
     "author": "Andris Reinman",
     "license": "MIT",
     "bugs": {
