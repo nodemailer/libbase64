@@ -36,7 +36,7 @@ describe('libbase64', () => {
         });
 
         it('shoud encode Buffer to base64', () => {
-            expect(libbase64.encode(new Buffer([0x00, 0x01, 0x02, 0x20, 0x03]))).to.equal('AAECIAM=');
+            expect(libbase64.encode(Buffer.from([0x00, 0x01, 0x02, 0x20, 0x03]))).to.equal('AAECIAM=');
         });
     });
 
@@ -62,7 +62,7 @@ describe('libbase64', () => {
                 lineLength: 9
             });
 
-            let bytes = new Buffer(streamFixture[0]),
+            let bytes = Buffer.from(streamFixture[0]),
                 i = 0,
                 buf = [],
                 buflen = 0;
@@ -89,7 +89,7 @@ describe('libbase64', () => {
                 }
 
                 let ord = bytes[i++];
-                encoder.write(new Buffer([ord]));
+                encoder.write(Buffer.from([ord]));
                 setImmediate(sendNextByte);
             };
 
@@ -99,7 +99,7 @@ describe('libbase64', () => {
         it('should transform incoming base64 to bytes', done => {
             let decoder = new libbase64.Decoder();
 
-            let bytes = new Buffer(streamFixture[1]),
+            let bytes = Buffer.from(streamFixture[1]),
                 i = 0,
                 buf = [],
                 buflen = 0;
@@ -126,7 +126,7 @@ describe('libbase64', () => {
                 }
 
                 let ord = bytes[i++];
-                decoder.write(new Buffer([ord]));
+                decoder.write(Buffer.from([ord]));
                 setImmediate(sendNextByte);
             };
 
