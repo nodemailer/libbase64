@@ -22,7 +22,7 @@ Encode Buffer objects or unicode strings with
 
 Where
 
-* **val** is a Buffer or an unicode string
+-   **val** is a Buffer or an unicode string
 
 **Example**
 
@@ -39,8 +39,8 @@ To enforce soft line breaks on lines longer than selected amount of characters, 
 
 Where
 
-* **str** is a base64 encoded string
-* **lineLength** (defaults to 76) is the maximum allowed line length
+-   **str** is a base64 encoded string
+-   **lineLength** (defaults to 76) is the maximum allowed line length
 
 **Example**
 
@@ -63,8 +63,11 @@ Create new Encoder Stream with
 
 Where
 
-* **options** is the optional stream options object with an additional option `lineLength` if you want to use any other line length than the default 76
-  characters (or set to `false` to turn the soft wrapping off completely)
+-   **options** is the optional stream options object
+-   **options.lineLength** (Number) if you want to use any other line length than the default 76
+    characters (or set to `false` to turn the soft wrapping off completely)
+-   **options.skipStartBytes** (Number) Optional. How many bytes to skip from output (default to 0)
+-   **options.limitOutbutBytes** (Number) Optional. How many bytes to return (defaults to all bytes)
 
 **Example**
 
@@ -88,7 +91,7 @@ Create new Decoder Stream with
 
 Where
 
-* **options** is the optional stream options object
+-   **options** is the optional stream options object
 
 **Example**
 

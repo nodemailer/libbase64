@@ -1,5 +1,4 @@
 /* eslint no-unused-expressions:0, prefer-arrow-callback: 0 */
-/* globals beforeEach, describe, it */
 
 'use strict';
 
@@ -9,7 +8,7 @@ let expect = chai.expect;
 let crypto = require('crypto');
 let fs = require('fs');
 
-chai.Assertion.includeStack = true;
+chai.config.includeStack = true;
 
 describe('libbase64', () => {
     let encodeFixtures = [
@@ -80,6 +79,48 @@ describe('libbase64', () => {
                 buf = Buffer.concat(buf, buflen);
 
                 expect(buf.toString()).to.equal(streamFixture[1]);
+                done();
+            });
+
+            let sendNextByte = function() {
+                if (i >= bytes.length) {
+                    return encoder.end();
+                }
+
+                let ord = bytes[i++];
+                encoder.write(Buffer.from([ord]));
+                setImmediate(sendNextByte);
+            };
+
+            sendNextByte();
+        });
+
+        it('should transform incoming bytes to limited base64', done => {
+            let start = 20;
+            let total = 77;
+            let encoder = new libbase64.Encoder({
+                lineLength: 9,
+                skipStartBytes: start,
+                limitOutbutBytes: total
+            });
+
+            let bytes = Buffer.from(streamFixture[0]),
+                i = 0,
+                buf = [],
+                buflen = 0;
+
+            encoder.on('data', chunk => {
+                buf.push(chunk);
+                buflen += chunk.length;
+            });
+
+            encoder.on('end', chunk => {
+                if (chunk) {
+                    buf.push(chunk);
+                    buflen += chunk.length;
+                }
+                buf = Buffer.concat(buf, buflen);
+                expect(buf.toString()).to.equal(streamFixture[1].substr(start, total));
                 done();
             });
 
