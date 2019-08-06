@@ -68,6 +68,7 @@ Where
     characters (or set to `false` to turn the soft wrapping off completely)
 -   **options.skipStartBytes** (Number) Optional. How many bytes to skip from output (default to 0)
 -   **options.limitOutbutBytes** (Number) Optional. How many bytes to return (defaults to all bytes)
+-   **options.startPadding** (String) Optional. Fills first line with provided padding string. Usually goes together with skipStartBytes to get line folding correct.
 
 **Example**
 
