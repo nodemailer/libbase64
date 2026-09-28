@@ -204,4 +204,80 @@ describe('libbase64', () => {
             });
         });
     });
+
+    describe('Padding inside the input', () => {
+        // writes the input in pieces of chunkSize bytes and resolves with the transformed output
+        let runStream = (stream, input, chunkSize) =>
+            new Promise((resolve, reject) => {
+                let output = [];
+                stream.on('data', chunk => output.push(chunk));
+                stream.on('end', () => resolve(Buffer.concat(output)));
+                stream.on('error', reject);
+                for (let pos = 0; pos < input.length; pos += chunkSize) {
+                    stream.write(input.subarray(pos, pos + chunkSize));
+                }
+                stream.end();
+            });
+
+        let paddedLines = 'YQ==\r\nYg==\r\nYw==';
+
+        it('should decode padded lines concatenated', () => {
+            expect(libbase64.decode(paddedLines).toString()).to.equal('abc');
+            expect(libbase64.decode('YQ==Yg==Yw==').toString()).to.equal('abc');
+            expect(libbase64.decode('YWI=YWJj').toString()).to.equal('ababc');
+        });
+
+        it('should decode padded segments separated by whitespace', () => {
+            expect(libbase64.decode('YQ== \r\n\t Yg=\r\n= Yw').toString()).to.equal('abc');
+        });
+
+        it('should not change decoding of Buffer input', () => {
+            expect(libbase64.decode(Buffer.from('YQ==Yg==')).toString()).to.equal('YQ==Yg==');
+        });
+
+        it('should stream decode padded lines with any chunk size', async () => {
+            let input = Buffer.from(paddedLines);
+            for (let chunkSize = 1; chunkSize <= input.length; chunkSize++) {
+                let output = await runStream(new libbase64.Decoder(), input, chunkSize);
+                expect(output.toString(), 'chunk size ' + chunkSize).to.equal('abc');
+            }
+        });
+
+        it('should stream decode padding split across chunks', async () => {
+            let decoder = new libbase64.Decoder();
+            let result = new Promise((resolve, reject) => {
+                let output = [];
+                decoder.on('data', chunk => output.push(chunk));
+                decoder.on('end', () => resolve(Buffer.concat(output)));
+                decoder.on('error', reject);
+            });
+            // the "==" run of the first segment arrives as "=" + "="
+            decoder.write(Buffer.from('YWJjZA='));
+            decoder.write(Buffer.from('=\r\nZW'));
+            decoder.write(Buffer.from('Y'));
+            decoder.end(Buffer.from('='));
+            expect((await result).toString()).to.equal('abcdef');
+        });
+
+        it('should round trip random data through Encoder and Decoder', async () => {
+            let data = crypto.randomBytes(100 * 1024);
+            for (let chunkSize of [3, 4, 5, 7, 76, 78, 1000, 4096, 65536]) {
+                let encoded = await runStream(new libbase64.Encoder(), data, chunkSize);
+                let decoded = await runStream(new libbase64.Decoder(), encoded, chunkSize);
+                expect(decoded.equals(data), 'chunk size ' + chunkSize).to.be.true;
+            }
+        }).timeout(60 * 1000); // every chunk costs a setImmediate() in both streams
+
+        it('should round trip separately encoded parts', async () => {
+            // each part is padded on its own, as when encoded pieces are glued together
+            let parts = [crypto.randomBytes(1), crypto.randomBytes(2), crypto.randomBytes(3), crypto.randomBytes(100)];
+            let input = Buffer.from(parts.map(part => libbase64.encode(part)).join('\r\n'));
+            let expected = Buffer.concat(parts);
+            expect(libbase64.decode(input.toString()).equals(expected)).to.be.true;
+            for (let chunkSize of [1, 2, 3, 5, 16, input.length]) {
+                let decoded = await runStream(new libbase64.Decoder(), input, chunkSize);
+                expect(decoded.equals(expected), 'chunk size ' + chunkSize).to.be.true;
+            }
+        });
+    });
 });
