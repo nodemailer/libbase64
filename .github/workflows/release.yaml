@@ -2,6 +2,9 @@ on:
     push:
         branches:
             - master
+    # Manual run: publish the version currently on master (used when a release was cut
+    # but the publish step failed)
+    workflow_dispatch:
 
 permissions:
     contents: write
@@ -15,23 +18,22 @@ jobs:
         steps:
             - uses: google-github-actions/release-please-action@v3
               id: release
+              if: ${{ github.event_name == 'push' }}
               with:
                   release-type: node
                   package-name: ${{vars.NPM_MODULE_NAME}}
                   pull-request-title-pattern: 'chore${scope}: release ${version} [skip-ci]'
-            # The logic below handles the npm publication:
+            # The logic below handles the npm publication through npm trusted publishing
+            # (OIDC, no token secret): it runs when a new release is created, or on a
+            # manual dispatch.
             - uses: actions/checkout@v4
-              # these if statements ensure that a publication only occurs when
-              # a new release is created:
-              if: ${{ steps.release.outputs.release_created }}
+              if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
             - uses: actions/setup-node@v4
               with:
-                  node-version: 20
+                  node-version: 24
                   registry-url: 'https://registry.npmjs.org'
-              if: ${{ steps.release.outputs.release_created }}
+              if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
             - run: npm ci
-              if: ${{ steps.release.outputs.release_created }}
+              if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
             - run: npm publish --provenance --access public
-              env:
-                  NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-              if: ${{ steps.release.outputs.release_created }}
+              if: ${{ steps.release.outputs.release_created || github.event_name == 'workflow_dispatch' }}
