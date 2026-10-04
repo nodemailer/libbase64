@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/nodemailer/libbase64/compare/v1.3.1...v1.3.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* **encoder:** wrap base64 lines without regular expressions, independent of chunk boundaries ([2c76a48](https://github.com/nodemailer/libbase64/commit/2c76a489f1444600b5645a44c933e159ac8e920f))
+
 ## [1.3.1](https://github.com/nodemailer/libbase64/compare/v1.3.0...v1.3.1) (2026-09-28)
 
 
