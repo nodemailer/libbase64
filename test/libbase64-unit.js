@@ -12,6 +12,23 @@ let fs = require('node:fs');
 chai.config.includeStack = true;
 
 describe('libbase64', () => {
+    // writes the input in pieces (a chunk size, or a list of sizes used in turn) and resolves with the
+    // transformed output
+    let runStream = (stream, input, chunkSizes) =>
+        new Promise((resolve, reject) => {
+            chunkSizes = [].concat(chunkSizes);
+            let output = [];
+            stream.on('data', chunk => output.push(chunk));
+            stream.on('end', () => resolve(Buffer.concat(output)));
+            stream.on('error', reject);
+            for (let pos = 0, i = 0; pos < input.length; i++) {
+                let size = chunkSizes[i % chunkSizes.length];
+                stream.write(input.subarray(pos, pos + size));
+                pos += size;
+            }
+            stream.end();
+        });
+
     let encodeFixtures = [
         ['abcd= ÕÄÖÜ', 'YWJjZD0gw5XDhMOWw5w='],
         ['foo bar  ', 'Zm9vIGJhciAg'],
@@ -206,19 +223,6 @@ describe('libbase64', () => {
     });
 
     describe('Padding inside the input', () => {
-        // writes the input in pieces of chunkSize bytes and resolves with the transformed output
-        let runStream = (stream, input, chunkSize) =>
-            new Promise((resolve, reject) => {
-                let output = [];
-                stream.on('data', chunk => output.push(chunk));
-                stream.on('end', () => resolve(Buffer.concat(output)));
-                stream.on('error', reject);
-                for (let pos = 0; pos < input.length; pos += chunkSize) {
-                    stream.write(input.subarray(pos, pos + chunkSize));
-                }
-                stream.end();
-            });
-
         let paddedLines = 'YQ==\r\nYg==\r\nYw==';
 
         it('should decode padded lines concatenated', () => {
@@ -266,7 +270,7 @@ describe('libbase64', () => {
                 let decoded = await runStream(new libbase64.Decoder(), encoded, chunkSize);
                 expect(decoded.equals(data), 'chunk size ' + chunkSize).to.be.true;
             }
-        }).timeout(60 * 1000); // every chunk costs a setImmediate() in both streams
+        }).timeout(60 * 1000); // every chunk costs a setImmediate() in the Decoder
 
         it('should round trip separately encoded parts', async () => {
             // each part is padded on its own, as when encoded pieces are glued together
@@ -277,6 +281,77 @@ describe('libbase64', () => {
             for (let chunkSize of [1, 2, 3, 5, 16, input.length]) {
                 let decoded = await runStream(new libbase64.Decoder(), input, chunkSize);
                 expect(decoded.equals(expected), 'chunk size ' + chunkSize).to.be.true;
+            }
+        });
+    });
+
+    describe('Encoder output', () => {
+        let runEncoder = async (options, input, chunkSizes) => (await runStream(new libbase64.Encoder(options), input, chunkSizes)).toString();
+
+        it('should not depend on how the input is chunked', async () => {
+            // 1140 bytes encode to exactly 20 lines of 76 characters, the layout where a chunk can end on a line end
+            for (let length of [0, 1, 2, 3, 57, 114, 1140, 1141, 5000]) {
+                let data = crypto.randomBytes(length);
+                let expected = libbase64.wrap(libbase64.encode(data), 76);
+                for (let chunkSizes of [[1], [3], [57], [1139, 1], [100, 14], [length || 1]]) {
+                    expect(await runEncoder({}, data, chunkSizes), `length ${length} chunks ${chunkSizes}`).to.equal(expected);
+                }
+            }
+        });
+
+        it('should never end with a line break', async () => {
+            for (let lineLength of [1, 3, 4, 76]) {
+                let data = crypto.randomBytes(lineLength * 3);
+                let output = await runEncoder({ lineLength }, data, [1]);
+                expect(output.endsWith('\r\n'), `line length ${lineLength}`).to.be.false;
+                expect(output).to.equal(libbase64.wrap(libbase64.encode(data), lineLength));
+            }
+        });
+
+        it('should apply padding, skipped bytes and the output limit to the wrapped output', async () => {
+            let data = crypto.randomBytes(1000);
+            let full = libbase64.wrap('#'.repeat(10) + libbase64.encode(data), 76);
+            for (let limit of [1, 77, 78, 500]) {
+                let options = { startPadding: '#'.repeat(10), skipStartBytes: 12, limitOutputBytes: limit };
+                expect(await runEncoder(options, data, [7, 57])).to.equal(full.substr(12, limit));
+            }
+            // the misspelled option name earlier versions read is still accepted
+            expect(await runEncoder({ limitOutbutBytes: 20 }, data, [100])).to.equal(libbase64.wrap(libbase64.encode(data), 76).substr(0, 20));
+        });
+
+        it('should only use whole line lengths', async () => {
+            let data = crypto.randomBytes(300);
+            let encoded = libbase64.encode(data);
+            for (let [lineLength, used] of [
+                [2.5, 2],
+                [76.9, 76],
+                ['76', 76],
+                [' 7', 7],
+                [0.5, 76],
+                ['abc', 76],
+                [Infinity, 76],
+                [-3, 76]
+            ]) {
+                let expected = libbase64.wrap(encoded, used);
+                expect(libbase64.wrap(encoded, lineLength), String(lineLength)).to.equal(expected);
+                expect(await runEncoder({ lineLength }, data, [7]), String(lineLength)).to.equal(expected);
+            }
+        });
+
+        it('should not wrap when line length is false', async () => {
+            let data = crypto.randomBytes(500);
+            expect(await runEncoder({ lineLength: false }, data, [7, 3])).to.equal(libbase64.encode(data));
+        });
+    });
+
+    describe('#wrap fast path', () => {
+        it('should match line based wrapping for every kind of input', () => {
+            // reference implementation of the line based wrapping
+            let reference = (str, lineLength) => str.replace(new RegExp('.{' + lineLength + '}', 'g'), '$&\r\n').trim();
+            for (let input of ['ABCabc+/=0'.repeat(50), ' padded '.repeat(30), 'line\r\nbreaks\r\n'.repeat(20), 'x'.repeat(76), 'x'.repeat(77)]) {
+                for (let lineLength of [1, 5, 76]) {
+                    expect(libbase64.wrap(input, lineLength), JSON.stringify([input.slice(0, 20), lineLength])).to.equal(reference(input, lineLength));
+                }
             }
         });
     });
