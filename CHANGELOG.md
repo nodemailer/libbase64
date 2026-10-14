@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/nodemailer/libbase64/compare/v1.3.2...v1.3.3) (2026-10-14)
+
+
+### Bug Fixes
+
+* **decoder:** decode padded segments into one buffer instead of a Buffer per segment ([0c01914](https://github.com/nodemailer/libbase64/commit/0c0191457e343769e8b68adb4052d71fa267abd1))
+
 ## [1.3.2](https://github.com/nodemailer/libbase64/compare/v1.3.1...v1.3.2) (2026-10-04)
 
 
