@@ -8,6 +8,8 @@ let chai = require('chai');
 let expect = chai.expect;
 let crypto = require('node:crypto');
 let fs = require('node:fs');
+let childProcess = require('node:child_process');
+let path = require('node:path');
 
 chai.config.includeStack = true;
 
@@ -271,6 +273,36 @@ describe('libbase64', () => {
                 expect(decoded.equals(data), 'chunk size ' + chunkSize).to.be.true;
             }
         }).timeout(60 * 1000); // every chunk costs a setImmediate() in the Decoder
+
+        it('should decode every input like segment by segment decoding', () => {
+            let alphabet = 'AAAAQQQQYWJjZ+/-_====  \r\n\t.!é';
+            for (let i = 0; i < 20000; i++) {
+                let input = Array.from(crypto.randomBytes(i % 40), byte => alphabet[byte % alphabet.length]).join('');
+                let expected = Buffer.concat(
+                    input
+                        .split(/[=]+/)
+                        .filter(segment => segment)
+                        .map(segment => Buffer.from(segment, 'base64'))
+                );
+                expect(libbase64.decode(input).equals(expected), JSON.stringify(input)).to.be.true;
+            }
+        });
+
+        it('should decode many padded segments in memory proportional to the input', () => {
+            // 4,000,000 padded lines (24 MB) used to keep a Buffer per line and needed several
+            // hundred MB of heap
+            let script = [
+                "let libbase64 = require('./lib/libbase64');",
+                "let decoded = libbase64.decode('AA==\\r\\n'.repeat(4000000));",
+                "let units = libbase64.decode('AB='.repeat(2000000));",
+                'if (decoded.length !== 4000000 || units.length !== 2000000) process.exit(2);'
+            ].join('\n');
+            let result = childProcess.spawnSync(process.execPath, ['--max-old-space-size=128', '-e', script], {
+                cwd: path.join(__dirname, '..'),
+                encoding: 'utf-8'
+            });
+            expect(result.status, result.stderr.slice(0, 500)).to.equal(0);
+        }).timeout(60 * 1000);
 
         it('should round trip separately encoded parts', async () => {
             // each part is padded on its own, as when encoded pieces are glued together
