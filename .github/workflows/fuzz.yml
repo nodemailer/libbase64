@@ -1,0 +1,25 @@
+name: Fuzz
+
+# The property tests with many more generated inputs than the regular suite. Every run uses new
+# random seeds, a failure prints the seed to replay it locally with FC_SEED
+on:
+    schedule:
+        - cron: '17 4 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    fuzz:
+        name: Fuzz (Node 24.x)
+        timeout-minutes: 15
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - name: Use Node.js 24.x
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24.x
+            - run: npm install
+            - run: npm run test:fuzz
