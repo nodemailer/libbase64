@@ -1,18 +1,19 @@
-'use strict';
-
-const { Buffer } = require('node:buffer');
-const stream = require('node:stream');
-const Transform = stream.Transform;
+import { Buffer } from 'node:buffer';
+import { Transform, type TransformCallback } from 'node:stream';
 
 /**
  * Encodes a Buffer into a base64 encoded string
  *
- * @param {Buffer} buffer Buffer to convert
- * @returns {String} base64 encoded string
+ * @param buffer Buffer or unicode string to convert
+ * @returns base64 encoded string
  */
-function encode(buffer) {
+export function encode(buffer: Buffer | Uint8Array | string): string {
     if (typeof buffer === 'string') {
-        buffer = Buffer.from(buffer, 'utf-8');
+        return Buffer.from(buffer, 'utf-8').toString('base64');
+    }
+    if (!Buffer.isBuffer(buffer)) {
+        // a plain Uint8Array has no base64 toString(), it would turn into a list of numbers
+        return Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).toString('base64');
     }
 
     return buffer.toString('base64');
@@ -21,10 +22,10 @@ function encode(buffer) {
 /**
  * Decodes a base64 encoded string to a Buffer object
  *
- * @param {String} str base64 encoded string
- * @returns {Buffer} Decoded value
+ * @param str base64 encoded string
+ * @returns Decoded value
  */
-function decode(str) {
+export function decode(str: string | Buffer | null | undefined): Buffer {
     str = str || '';
 
     // Buffer.from() stops decoding at the first padding char, so input made of several
@@ -54,15 +55,16 @@ function decode(str) {
         }
     }
 
-    return Buffer.from(str, 'base64');
+    // a Buffer is copied as it is, the encoding argument only applies to strings
+    return Buffer.from(str as string, 'base64');
 }
 
 /**
  * Turns a line length option into a whole number of characters, the default for anything unusable
  */
-function normalizeLineLength(lineLength) {
-    lineLength = Math.floor(Number(lineLength));
-    return Number.isFinite(lineLength) && lineLength >= 1 ? lineLength : 76;
+function normalizeLineLength(lineLength: unknown): number {
+    let length = Math.floor(Number(lineLength));
+    return Number.isFinite(length) && length >= 1 ? length : 76;
 }
 
 /**
@@ -70,12 +72,12 @@ function normalizeLineLength(lineLength) {
  * `final` set the last line, which may be shorter, gets no line break; otherwise only complete lines
  * are taken and the rest is left for the caller
  *
- * @param {Buffer} src Bytes to wrap
- * @param {Number} lineLength Line length
- * @param {Boolean} final Whether `src` ends the output
- * @returns {Object} `{ output, rest }`: the wrapped bytes and the number of trailing bytes not taken
+ * @param src Bytes to wrap
+ * @param lineLength Line length
+ * @param final Whether `src` ends the output
+ * @returns The wrapped bytes and the number of trailing bytes not taken
  */
-function wrapBuffer(src, lineLength, final) {
+function wrapBuffer(src: Buffer, lineLength: number, final: boolean): { output: Buffer; rest: number } {
     let lines = Math.ceil(src.length / lineLength);
     // the last line waits for more data unless this is the end: whether it gets a line break depends on
     // whether anything follows it
@@ -106,39 +108,39 @@ function wrapBuffer(src, lineLength, final) {
 /**
  * Adds soft line breaks to a base64 string
  *
- * @param {String} str base64 encoded string that might need line wrapping
- * @param {Number} [lineLength=76] Maximum allowed length for a line
- * @returns {String} Soft-wrapped base64 encoded string
+ * @param str base64 encoded string that might need line wrapping
+ * @param [lineLength=76] Maximum allowed length for a line
+ * @returns Soft-wrapped base64 encoded string
  */
-function wrap(str, lineLength) {
+export function wrap(str: string | Buffer | null | undefined, lineLength?: number | string | null): string {
     str = (str || '').toString();
-    lineLength = normalizeLineLength(lineLength);
+    let length = normalizeLineLength(lineLength);
 
-    if (str.length <= lineLength) {
+    if (str.length <= length) {
         return str;
     }
 
-    // eslint-disable-next-line no-control-regex
     if (/[^\u0000-\u00ff]|[\r\n]/.test(str) || str.trim() !== str) {
         // not a plain base64 string, keep the line based behaviour for whatever this is
-        return legacyWrap(str, lineLength);
+        return legacyWrap(str, length);
     }
 
-    return wrapBuffer(Buffer.from(str, 'latin1'), lineLength, true).output.toString('latin1');
+    return wrapBuffer(Buffer.from(str, 'latin1'), length, true).output.toString('latin1');
 }
 
 /**
  * Line wrapping for input that is not a plain base64 string: line breaks already in the input end a
  * line, and surrounding whitespace is trimmed
  */
-function legacyWrap(str, lineLength) {
-    let result = [];
+function legacyWrap(str: string, lineLength: number): string {
+    let result: string[] = [];
     let pos = 0;
     let chunkLength = lineLength * 1024;
+    let wrapRegex = new RegExp('.{' + lineLength + '}', 'g');
     while (pos < str.length) {
         let wrappedLines = str
-            .substr(pos, chunkLength)
-            .replace(new RegExp('.{' + lineLength + '}', 'g'), '$&\r\n')
+            .slice(pos, pos + chunkLength)
+            .replace(wrapRegex, '$&\r\n')
             .trim();
         result.push(wrappedLines);
         pos += chunkLength;
@@ -148,22 +150,51 @@ function legacyWrap(str, lineLength) {
 }
 
 /**
+ * Options for the base64 encoder stream
+ */
+export interface EncoderOptions {
+    /** Maximum length for lines, 76 by default. Set to false to disable wrapping */
+    lineLength?: number | string | false | undefined;
+    /** Number of output bytes to drop from the start */
+    skipStartBytes?: number | undefined;
+    /** Maximum number of output bytes to emit */
+    limitOutputBytes?: number | undefined;
+    /**
+     * Misspelled name of `limitOutputBytes` that earlier versions read, still accepted
+     *
+     * @deprecated Use `limitOutputBytes`
+     */
+    limitOutbutBytes?: number | undefined;
+    /** Characters to prepend to the first line before wrapping, usually used together with `skipStartBytes` */
+    startPadding?: string | undefined;
+}
+
+/**
+ * Options for the base64 decoder stream, none are used at the moment
+ */
+export interface DecoderOptions {
+    [key: string]: unknown;
+}
+
+/**
  * Creates a transform stream for encoding data to base64 encoding
  *
  * The output is the same as `wrap(encode(input), lineLength)` no matter how the input is split into
  * chunks: every line but the last one ends with a line break, the last one does not
- *
- * @constructor
- * @param {Object} options Stream options
- * @param {Number} [options.lineLength=76] Maximum lenght for lines, set to false to disable wrapping
- * @param {Number} [options.skipStartBytes] Number of output bytes to drop from the start
- * @param {Number} [options.limitOutputBytes] Maximum number of output bytes to emit
- * @param {String} [options.startPadding] Characters to prepend to the first line before wrapping
  */
-class Encoder extends Transform {
-    constructor(options) {
+export class Encoder extends Transform {
+    options: EncoderOptions;
+    skipStartBytes: number;
+    limitOutputBytes: number;
+    inputBytes: number;
+    outputBytes: number;
+    /** Encoded characters of the line that is not complete yet @internal */
+    _curLine: string;
+    /** Input bytes that do not make up a complete base64 group yet @internal */
+    _remainingBytes: Buffer | null;
+
+    constructor(options?: EncoderOptions) {
         super();
-        // init Transform
         this.options = options || {};
 
         if (this.options.lineLength !== false) {
@@ -171,20 +202,19 @@ class Encoder extends Transform {
         }
 
         this.skipStartBytes = Number(this.options.skipStartBytes) || 0;
-        // `limitOutbutBytes` is the name earlier versions read
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
         this.limitOutputBytes = Number(this.options.limitOutputBytes || this.options.limitOutbutBytes) || 0;
 
-        // encoded characters of the line that is not complete yet. startPadding can be used together
-        // with skipStartBytes
+        // startPadding can be used together with skipStartBytes
         this._curLine = this.options.startPadding || '';
-        // input bytes that do not make up a complete base64 group yet
         this._remainingBytes = null;
 
         this.inputBytes = 0;
         this.outputBytes = 0;
     }
 
-    _writeChunk(chunk) {
+    /** @internal */
+    _writeChunk(chunk: Buffer): void {
         if (this.skipStartBytes) {
             if (chunk.length <= this.skipStartBytes) {
                 this.skipStartBytes -= chunk.length;
@@ -213,8 +243,10 @@ class Encoder extends Transform {
     /**
      * Emits the encoded characters `b64` that follow the current line, keeping what can not be emitted
      * yet as the new current line
+     *
+     * @internal
      */
-    _emit(b64, final) {
+    _emit(b64: string, final: boolean): void {
         let src = Buffer.from(this._curLine + b64, 'latin1');
         if (!src.length) {
             return;
@@ -225,55 +257,58 @@ class Encoder extends Transform {
             return this._writeChunk(src);
         }
 
-        let { output, rest } = wrapBuffer(src, this.options.lineLength, final);
+        let { output, rest } = wrapBuffer(src, this.options.lineLength as number, final);
         this._curLine = rest ? src.toString('latin1', src.length - rest) : '';
         if (output.length) {
             this._writeChunk(output);
         }
     }
 
-    _transform(chunk, encoding, done) {
-        if (encoding !== 'buffer') {
-            chunk = Buffer.from(chunk, encoding);
-        }
+    /** @internal */
+    override _transform(chunk: Buffer | string, encoding: BufferEncoding | 'buffer', done: TransformCallback): void {
+        let buf = encoding !== 'buffer' ? Buffer.from(chunk as string, encoding) : (chunk as Buffer);
 
-        if (!chunk || !chunk.length) {
+        if (!buf.length) {
             return done();
         }
 
-        this.inputBytes += chunk.length;
+        this.inputBytes += buf.length;
 
         if (this._remainingBytes) {
-            chunk = Buffer.concat([this._remainingBytes, chunk], this._remainingBytes.length + chunk.length);
+            buf = Buffer.concat([this._remainingBytes, buf], this._remainingBytes.length + buf.length);
             this._remainingBytes = null;
         }
 
-        let extra = chunk.length % 3;
+        let extra = buf.length % 3;
         if (extra) {
-            this._remainingBytes = chunk.subarray(chunk.length - extra);
-            chunk = chunk.subarray(0, chunk.length - extra);
+            this._remainingBytes = buf.subarray(buf.length - extra);
+            buf = buf.subarray(0, buf.length - extra);
         }
 
-        this._emit(encode(chunk), false);
+        this._emit(encode(buf), false);
         done();
     }
 
-    _flush(done) {
+    /** @internal */
+    override _flush(done: TransformCallback): void {
         this._emit(this._remainingBytes ? encode(this._remainingBytes) : '', true);
+        this._remainingBytes = null;
         done();
     }
 }
 
 /**
  * Creates a transform stream for decoding base64 encoded strings
- *
- * @constructor
- * @param {Object} options Stream options
  */
-class Decoder extends Transform {
-    constructor(options) {
+export class Decoder extends Transform {
+    options: DecoderOptions;
+    inputBytes: number;
+    outputBytes: number;
+    /** Characters of the base64 quartet that is not complete yet @internal */
+    _curLine: string;
+
+    constructor(options?: DecoderOptions) {
         super();
-        // init Transform
         this.options = options || {};
         this._curLine = '';
 
@@ -281,14 +316,17 @@ class Decoder extends Transform {
         this.outputBytes = 0;
     }
 
-    _transform(chunk, encoding, done) {
+    /** @internal */
+    override _transform(chunk: Buffer, _encoding: BufferEncoding | 'buffer', done: TransformCallback): void {
         if (!chunk || !chunk.length) {
-            return setImmediate(done);
+            return done();
         }
 
         this.inputBytes += chunk.length;
 
-        let b64 = this._curLine + chunk.toString('ascii');
+        // latin1 maps every byte to one character. 'ascii' would clear the high bit of a byte, turning
+        // stray 8-bit bytes into base64 characters instead of skipping them as decode() does
+        let b64 = this._curLine + chunk.toString('latin1');
         this._curLine = '';
 
         if (/[^a-zA-Z0-9+/=]/.test(b64)) {
@@ -300,16 +338,16 @@ class Decoder extends Transform {
         let padded = '';
         let lastPad = b64.lastIndexOf('=');
         if (lastPad >= 0) {
-            padded = b64.substr(0, lastPad + 1);
-            b64 = b64.substr(lastPad + 1);
+            padded = b64.slice(0, lastPad + 1);
+            b64 = b64.slice(lastPad + 1);
         }
 
         if (b64.length < 4) {
             this._curLine = b64;
             b64 = '';
         } else if (b64.length % 4) {
-            this._curLine = b64.substr(-b64.length % 4);
-            b64 = b64.substr(0, b64.length - this._curLine.length);
+            this._curLine = b64.slice(-(b64.length % 4));
+            b64 = b64.slice(0, b64.length - this._curLine.length);
         }
 
         b64 = padded + b64;
@@ -320,25 +358,30 @@ class Decoder extends Transform {
             this.push(buf);
         }
 
-        setImmediate(done);
+        done();
     }
 
-    _flush(done) {
+    /** @internal */
+    override _flush(done: TransformCallback): void {
         if (this._curLine) {
             let buf = decode(this._curLine);
             this.outputBytes += buf.length;
             this.push(buf);
             this._curLine = '';
         }
-        setImmediate(done);
+        done();
     }
 }
 
-// expose to the world
-module.exports = {
+// The default export is the same set of members as one object, for `import libbase64 from 'libbase64'`.
+// In the CommonJS build `require('libbase64')` returns the exports object and its `.default` is that
+// object itself, see scripts/build.js
+const libbase64 = {
     encode,
     decode,
     wrap,
     Encoder,
     Decoder
 };
+
+export default libbase64;

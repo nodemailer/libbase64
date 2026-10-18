@@ -1,6 +1,6 @@
 # libbase64
 
-Encode and decode base64 strings.
+Encode and decode base64 strings. Written in TypeScript, published with both ES module and CommonJS builds and type declarations. Requires Node.js 20 or newer.
 
 ## Usage
 
@@ -14,6 +14,14 @@ Require in your script
 const libbase64 = require('libbase64');
 ```
 
+or import it as an ES module
+
+```javascript
+import libbase64 from 'libbase64';
+// or
+import { encode, decode, wrap, Encoder, Decoder } from 'libbase64';
+```
+
 ### Encode values
 
 Encode Buffer objects or unicode strings with
@@ -22,13 +30,30 @@ Encode Buffer objects or unicode strings with
 
 Where
 
--   **val** is a Buffer or an unicode string
+- **val** is a Buffer, an Uint8Array or an unicode string
 
 **Example**
 
 ```javascript
 libbase64.encode('jõgeva');
 // asO1Z2V2YQ==
+```
+
+### Decode values
+
+Decode base64 strings to a Buffer with
+
+    libbase64.decode(str) → Buffer
+
+Where
+
+- **str** is a base64 encoded string. Line breaks and other characters outside of the base64 alphabet are ignored. Input made of several separately padded segments (eg. every line padded on its own) is decoded segment by segment
+
+**Example**
+
+```javascript
+libbase64.decode('asO1Z2V2YQ==').toString();
+// jõgeva
 ```
 
 ### Wrap encoded values
@@ -39,8 +64,8 @@ To enforce soft line breaks on lines longer than selected amount of characters, 
 
 Where
 
--   **str** is a base64 encoded string
--   **lineLength** (defaults to 76) is the maximum allowed line length
+- **str** is a base64 encoded string
+- **lineLength** (defaults to 76) is the maximum allowed line length
 
 **Example**
 
@@ -63,12 +88,14 @@ Create new Encoder Stream with
 
 Where
 
--   **options** is the optional stream options object
--   **options.lineLength** (Number) if you want to use any other line length than the default 76
-    characters (or set to `false` to turn the soft wrapping off completely)
--   **options.skipStartBytes** (Number) Optional. How many bytes to skip from output (default to 0)
--   **options.limitOutbutBytes** (Number) Optional. How many bytes to return (defaults to all bytes)
--   **options.startPadding** (String) Optional. Fills first line with provided padding string. Usually goes together with skipStartBytes to get line folding correct.
+- **options** is the optional stream options object
+- **options.lineLength** (Number) if you want to use any other line length than the default 76
+  characters (or set to `false` to turn the soft wrapping off completely)
+- **options.skipStartBytes** (Number) Optional. How many bytes to skip from output (default to 0)
+- **options.limitOutputBytes** (Number) Optional. How many bytes to return (defaults to all bytes). The misspelled `limitOutbutBytes` that earlier versions documented is still accepted
+- **options.startPadding** (String) Optional. Fills first line with provided padding string. Usually goes together with skipStartBytes to get line folding correct.
+
+The output is the same as `libbase64.wrap(libbase64.encode(input), lineLength)`, no matter how the input is split into chunks.
 
 **Example**
 
@@ -78,7 +105,7 @@ The following example script reads in a file, encodes it to base64 and saves the
 const libbase64 = require('libbase64');
 const fs = require('fs');
 const source = fs.createReadStream('source.txt');
-const encoded = fs.createReadStream('encoded.txt');
+const encoded = fs.createWriteStream('encoded.txt');
 const encoder = new libbase64.Encoder();
 
 source.pipe(encoder).pipe(encoded);
@@ -92,7 +119,7 @@ Create new Decoder Stream with
 
 Where
 
--   **options** is the optional stream options object
+- **options** is the optional stream options object
 
 **Example**
 
@@ -102,7 +129,7 @@ The following example script reads in a file in base64 encoding, decodes it and 
 const libbase64 = require('libbase64');
 const fs = require('fs');
 const encoded = fs.createReadStream('encoded.txt');
-const dest = fs.createReadStream('dest.txt');
+const dest = fs.createWriteStream('dest.txt');
 const decoder = new libbase64.Decoder();
 
 encoded.pipe(decoder).pipe(dest);

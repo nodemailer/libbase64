@@ -1,0 +1,12 @@
+{
+    "clean": true,
+    "all": true,
+    "temp-directory": "./coverage/.tmp",
+    "reporter": ["text", "html"],
+    "include": ["src/**/*.ts"],
+    "check-coverage": true,
+    "lines": 100,
+    "statements": 100,
+    "branches": 95,
+    "functions": 100
+}
