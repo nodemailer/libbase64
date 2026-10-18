@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/nodemailer/libbase64/compare/v1.3.3...v1.4.0) (2026-10-18)
+
+
+### Features
+
+* rewrite in TypeScript with ES module and CommonJS builds ([27f40e1](https://github.com/nodemailer/libbase64/commit/27f40e19e994f44460800fa195c04f1172abe013))
+
+
+### Bug Fixes
+
+* **decoder:** skip 8-bit input bytes instead of reading them as base64 characters ([27f40e1](https://github.com/nodemailer/libbase64/commit/27f40e19e994f44460800fa195c04f1172abe013))
+* **encoder:** encode a plain Uint8Array instead of its comma separated byte values ([27f40e1](https://github.com/nodemailer/libbase64/commit/27f40e19e994f44460800fa195c04f1172abe013))
+
 ## [1.3.3](https://github.com/nodemailer/libbase64/compare/v1.3.2...v1.3.3) (2026-10-14)
 
 
