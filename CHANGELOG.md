@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/nodemailer/libbase64/compare/v1.4.0...v1.4.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* skip characters outside of latin1 in decode() ([a46d7d0](https://github.com/nodemailer/libbase64/commit/a46d7d05306d5cb8c569135d1d80f90baf0cb66b))
+
 ## [1.4.0](https://github.com/nodemailer/libbase64/compare/v1.3.3...v1.4.0) (2026-10-18)
 
 
