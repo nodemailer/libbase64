@@ -34,6 +34,12 @@ export function decode(str: string | Buffer | null | undefined): Buffer {
     // keeping a Buffer per segment cost memory per segment, tens of times the input size
     // for a body that pads every line.
     if (typeof str === 'string') {
+        // Buffer reads only the low byte of a character, "Ł" (U+0141) would be decoded as "A".
+        // Characters outside of latin1 are not base64 characters, they are skipped like the rest
+        if (/[^\u0000-\u00ff]/.test(str)) {
+            str = str.replace(/[^\u0000-\u00ff]+/g, '');
+        }
+
         let padPos = str.indexOf('=');
         if (padPos >= 0 && /[a-zA-Z0-9+/\-_]/.test(str.slice(padPos))) {
             // a segment of n characters decodes to at most n * 3 / 4 bytes

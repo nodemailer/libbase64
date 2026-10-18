@@ -45,6 +45,7 @@
         "lint:fix": "eslint . --fix",
         "prepare": "npm run build",
         "update": "rm -rf node_modules package-lock.json && ncu -u && npm install",
+        "test:fuzz": "FC_NUM_RUNS=20000 node --import tsx --test test/libbase64-property-test.ts",
         "pretest:bun": "npm run build",
         "test:bun": "bun test --timeout 60000 $(find ./test -name \"*-test.ts\")"
     },
@@ -67,6 +68,7 @@
         "c8": "12.0.0",
         "eslint": "10.13.0",
         "eslint-config-prettier": "10.1.8",
+        "fast-check": "4.10.2",
         "globals": "17.13.0",
         "prettier": "3.9.10",
         "tsx": "4.23.15",

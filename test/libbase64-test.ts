@@ -98,6 +98,12 @@ describe('libbase64', () => {
                 assert.strictEqual(decode(input).length, 0);
             }
         });
+
+        it('should skip characters outside of latin1', () => {
+            // Buffer reads only the low byte, "\u0141" (Ł) and "\u2062" would be read as "A" and "b"
+            assert.strictEqual(decode('YW\u0141Jj\u2062').toString(), 'abc');
+            assert.strictEqual(decode('YWJj\u0141=YWJj').toString(), 'abcabc');
+        });
     });
 
     describe('#wrap', () => {
