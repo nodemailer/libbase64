@@ -1,6 +1,6 @@
 {
     "name": "libbase64",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "description": "Encode and decode base64 encoded strings",
     "type": "module",
     "main": "./dist/cjs/libbase64.js",
