@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:coverage` - the same suite under c8, fails below the thresholds in `.c8rc.json`. CI runs it on Node 24.
 - `npm run test:bun` - the same suite under Bun.
 - `npm run test:fuzz` - the property tests (`test/libbase64-property-test.ts`, fast-check) with 20000 runs each. `.github/workflows/fuzz.yml` runs it weekly; replay a failure locally with the printed `FC_SEED`.
+- `npm run test:cjs` - builds `dist/`, then loads the CommonJS build and exercises the main API with `--no-experimental-require-module` (`test/cjs-smoke.cjs`). CI runs it on Node 22 and 24.
 - `npm run lint` - `tsc --noEmit` over `src/` and `test/`, then ESLint (`eslint.config.js`, the shared flat config also used by Nodemailer, with type-aware rules on `src/` and `no-await-in-loop` off for `test/`). `npm run lint:fix` applies autofixes.
 - `npm run format` / `npm run format:check` - Prettier (`.prettierrc`).
 - `npm run build` - produces `dist/` (also runs on install and before publish through `prepare`).
@@ -34,7 +35,16 @@ Nodemailer has its own copy of the encoder (`../nodemailer/src/base64/`), a fix 
 - `scripts/build.js` compiles `src/` twice (`tsconfig.esm.json`, `tsconfig.cjs.json`), writes a `package.json` with the module format into each output directory, and rewrites the CommonJS output so `require('libbase64')` returns the exports object (same members as the pre-TypeScript `module.exports`) whose non-enumerable `.default` is the object itself. A module with a default export not listed in `CJS_SHIMS` fails the build.
 - `package.json` `exports` maps `.` to both builds and `./lib/*` to the matching file under `dist/`, so the old `require('libbase64/lib/libbase64')` deep import keeps resolving.
 - Source must compile both ways: no `import.meta`, `require`, `module`, `__dirname`, top-level `await` or JSON imports under `src/`. Relative imports carry the `.js` extension. `erasableSyntaxOnly` and `exactOptionalPropertyTypes` are on.
-- EmailEngine bundles its dependencies with `@yao-pkg/pkg`, which only follows `require()`. Keep the CommonJS build working.
+- Keep the CommonJS build working, see Platform constraints below.
+
+## Platform constraints
+
+Both rules come from EmailEngine, which ships as a `@yao-pkg/pkg` binary: pkg snapshots a CommonJS module graph and cannot load ES modules.
+
+- **Node.js 20 is the minimum supported version.** Runtime code, tests and tooling must work on Node 20, 22 and 24 (`engines.node` is `>=20.0.0`, `@types/node` stays on the 20.x line).
+- **Everything that reaches runtime must be genuinely CommonJS-loadable.** `require()` of the CommonJS build and of every runtime dependency, transitive ones included, must work with `--no-experimental-require-module`. Node 22+ (and 20.19) can `require()` an ES module by default, which hides an ESM-only dependency until the pkg binary fails. A CommonJS entry that only wraps a dynamic `import()` does not count.
+- **Check:** `npm run test:cjs`. Run it after `npm run update` or any dependency change; CI runs it on Node 22 and 24.
+- There are no runtime dependencies. Should one ever be added, it must be CommonJS; never add or upgrade to an ESM-only dependency, and when a dependency's next major is ESM-only, pin the last CommonJS major in `.ncurc.cjs` (`reject`, or a `target` of `minor`/`patch`) with a comment giving the reason.
 
 ## Testing
 
