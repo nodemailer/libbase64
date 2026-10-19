@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test` - builds `dist/` (`pretest`), then runs every `test/**/*-test.ts` with the Node.js test runner through `tsx`.
 - `npm run test:coverage` - the same suite under c8, fails below the thresholds in `.c8rc.json`. CI runs it on Node 24.
 - `npm run test:bun` - the same suite under Bun.
-- `npm run lint` - `tsc --noEmit` over `src/` and `test/`, then ESLint (`eslint.config.js`, type-aware rules on `src/`).
+- `npm run test:fuzz` - the property tests (`test/libbase64-property-test.ts`, fast-check) with 20000 runs each. `.github/workflows/fuzz.yml` runs it weekly; replay a failure locally with the printed `FC_SEED`.
+- `npm run lint` - `tsc --noEmit` over `src/` and `test/`, then ESLint (`eslint.config.js`, the shared flat config also used by Nodemailer, with type-aware rules on `src/` and `no-await-in-loop` off for `test/`). `npm run lint:fix` applies autofixes.
 - `npm run format` / `npm run format:check` - Prettier (`.prettierrc`).
 - `npm run build` - produces `dist/` (also runs on install and before publish through `prepare`).
 - Single file: `node --import tsx --test test/libbase64-test.ts`, filter with `--test-name-pattern 'Decoder'`.
@@ -42,3 +43,29 @@ Nodemailer has its own copy of the encoder (`../nodemailer/src/base64/`), a fix 
 ## Release flow
 
 Versioning and the changelog are managed by release-please via `.github/workflows/release.yaml`. Release commits look like `chore(master): release X.Y.Z [skip-ci]`. Do not bump `version` in `package.json` or edit `CHANGELOG.md` by hand. Use Conventional Commit prefixes (`fix:`, `feat:`, `chore:`, ...).
+
+## Conventions
+
+These mirror the conventions used across Postal Systems projects (see `../emailengine`).
+
+**Git commits**
+
+- Use Conventional Commits: `fix:` (patch release), `feat:` (minor release), and `chore:`/`build:`/`docs:`/`ci:`/`refactor:`/`style:`/`test:` for changes that should not trigger a release. release-please derives the version and changelog from these prefixes.
+- Do **not** list Claude or any AI assistant as a co-author or co-contributor in commit messages or PR descriptions (no `Co-Authored-By` trailer).
+- Append `[skip ci]` to commits that do not change runtime behavior (docs, comments, formatting) to avoid spending CI minutes. Exception: never add `[skip ci]` to a `fix:` or `feat:` commit, those must run so the release workflow triggers. Tooling changes (lint, test runner, CI) should run CI, so leave the marker off those.
+
+**Code and docs style**
+
+- No emojis anywhere in code or documentation, printable ASCII only.
+- Use a single hyphen-minus (`-`) as a dash in user-facing strings and docs. Never use double hyphens (`--`), em dashes, or en dashes.
+- devDependencies are pinned to exact versions (no `^` or `~`). The library has no runtime dependencies.
+
+**Before committing code changes**
+
+1. `npm run format` and `npm run lint`
+2. `npm test`
+3. For non-trivial changes, consider `/simplify` and `/security-review`. The decoder parses untrusted MIME input, so memory use and malformed input handling are security relevant.
+
+**After pushing**
+
+- Check the workflow runs for the push (`gh run list --branch <branch>`) and report their status. If a run fails for an unrelated or infrastructure reason (checkout reporting "account suspended", HTTP 403, other auth errors), check <https://www.githubstatus.com/> for an active GitHub incident before assuming the change caused it.
