@@ -25,6 +25,7 @@ export default defineConfig([
         rules: {
             // Error detection
             'for-direction': 'error',
+            'no-await-in-loop': 'error',
             'no-div-regex': 'error',
             eqeqeq: 'error',
             'dot-notation': 'error',
@@ -109,8 +110,7 @@ export default defineConfig([
             // Project preferences
             'prefer-const': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-namespace': 'off',
-            '@typescript-eslint/no-this-alias': 'off'
+            '@typescript-eslint/no-namespace': 'off'
         }
     },
     {
@@ -131,6 +131,14 @@ export default defineConfig([
             '@typescript-eslint/no-deprecated': 'error',
             // `void promise;` marks a promise that is deliberately left unawaited
             'no-void': ['error', { allowAsStatement: true }]
+        }
+    },
+    {
+        // Repo-specific: the stream tests run each chunk size one after another on purpose so a failure names
+        // the chunk size that broke (11 violations, all in test/libbase64-test.ts)
+        files: ['test/**/*.ts'],
+        rules: {
+            'no-await-in-loop': 'off'
         }
     },
     prettier
