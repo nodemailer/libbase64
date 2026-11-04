@@ -54,7 +54,8 @@ describe('Built package', { timeout: 30 * 1000, skip: hasDist ? false : 'dist/ i
             shell: process.platform === 'win32'
         });
         assert.strictEqual(result.status, 0, result.stderr);
-        const files = JSON.parse(result.stdout)[0]
+        // npm 12 keys the report by package name, older npm returns an array
+        const files = Object.values<{ files: { path: string }[] }>(JSON.parse(result.stdout))[0]
             .files.map((file: { path: string }) => file.path)
             .sort();
         assert.deepStrictEqual(files, [
